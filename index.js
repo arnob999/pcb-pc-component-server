@@ -130,8 +130,30 @@ async function run() {
     app.get("/categories", async (req, res) => {
       const query = {};
       const categories = await categoriesCollection.find(query).toArray();
+      // console.log(categories);
       res.send(categories);
     });
+    //  get all products
+    app.get("/products", async (req, res) => {
+      const { search = "" } = req.query;
+
+      const query = {
+        $or: [
+          { product_name: { $regex: search, $options: "i" } }, // search by product name
+          { category_name: { $regex: search, $options: "i" } }, // search by category name
+        ],
+      };
+      const products = await productsCollection.find(query).toArray();
+      // console.log(search);
+      // console.log(
+      //   products.map((product) =>
+      //     console.log(product?.product_name, product?.category_name)
+      //   )
+      // );
+
+      res.send(products);
+    });
+
     app.get("/category/:id", async (req, res) => {
       const id = req.params.id;
       // console.log(id);
@@ -224,25 +246,34 @@ async function run() {
       const result = await productsCollection.insertOne(product);
       res.send(result);
     });
-    // update product advertising info
-    app.put("/products", async (req, res) => {
-      const id = req.query.product;
-      if (id) {
-        const filter = { _id: ObjectId(id) };
-        const options = { upsert: true };
-        const updatedDoc = {
-          $set: {
-            isAdvertised: true,
-          },
-        };
-        const result = await productsCollection.updateOne(
-          filter,
-          updatedDoc,
-          options
-        );
-        // console.log(result);
-        res.send(result);
-      }
+    app.put("/products", verifyJWT, verifySeller, async (req, res) => {
+      const product = req.body;
+      const filter = { _id: ObjectId(product._id) };
+      const option = { upsert: true };
+      console.log(product);
+      const updatedDoc = {
+        $set: {
+          category_id: product?.category_id,
+          category_name: product?.category_name,
+          condition: product?.condition,
+          description: product?.description,
+          location: product?.location,
+          original_price: product?.original_price,
+          picture: product?.picture,
+          product_name: product?.product_name,
+          resale_price: product?.resale_price,
+          seller_phone: product?.seller_phone,
+          usage_period: product?.usage_period,
+          year_purchased: product?.year_purchased,
+        },
+      };
+      const result = await productsCollection.updateOne(
+        filter,
+        updatedDoc,
+        option
+      );
+      console.log(result);
+      res.send(result);
     });
     app.put("/products/reportproduct", async (req, res) => {
       const id = req.query.reportproduct;
@@ -263,11 +294,12 @@ async function run() {
         res.send(result);
       }
     });
+
     //  get all advertised products
     app.get("/products/advertisement", verifyJWT, async (req, res) => {
       const query = { isAdvertised: true };
       const result = await productsCollection.find(query).toArray();
-      // console.log(result);
+      console.log(result);
       res.send(result);
     });
     app.get("/users/allbuyers", async (req, res) => {
@@ -320,30 +352,28 @@ async function run() {
       const result = await usersCollection.deleteOne(filter);
       res.send(result);
     });
-
-
-    app.get("/newuser", async (req, res) => {
-      const query = {}
-      const result = await usersCollection.find(query).toArray();
-      res.send(result)
-    })
+    // delete product
+    app.delete("/seller/product/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const result = await productsCollection.deleteOne(filter);
+      console.log(result);
+      res.send(result);
+    });
     // temporary to update any field on products collections
-    // app.get("/reportedproducts", async (req, res) => {
+    // app.get("/addData/active", async (req, res) => {
     //   const filter = {};
     //   const options = { upsert: true };
     //   const updatedDoc = {
     //     $set: {
-    //       isReported: false,
+    //       isActive: true,advertisingProduct
     //     },
     //   };
-    //   // const result = await productsCollection.find(filter).toArray();
-
     //   const result = await productsCollection.updateMany(
     //     filter,
     //     updatedDoc,
     //     options
     //   );
-    //   console.log(result);
     //   res.send(result);
     // });
   } finally {
@@ -352,6 +382,6 @@ async function run() {
 run().catch((err) => console.log(err));
 
 app.get("/", (req, res) => {
-  res.send("simple nodeserver running");
+  res.send("framework-peddler nodeserver running");
 });
 app.listen(port, () => console.log(`server is running on port ${port}`));
