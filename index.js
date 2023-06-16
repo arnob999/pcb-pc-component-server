@@ -302,6 +302,7 @@ async function run() {
       console.log(result);
       res.send(result);
     });
+
     app.get("/users/allbuyers", async (req, res) => {
       const query = { userRole: "Buyer" };
       const allbuyers = await usersCollection.find(query).toArray();
